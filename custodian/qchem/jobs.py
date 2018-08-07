@@ -251,6 +251,117 @@ class QCJob(Job):
                         solvent=orig_opt_input.solvent)
                     new_opt_QCInput.write_file(input_file)
 
+    @classmethod
+    def opt_freq_sp_job(cls,
+                        qchem_command,
+                        multimode="openmp",
+                        input_file="mol.qin",
+                        output_file="mol.qout",
+                        qclog_file="mol.qclog",
+                        sp_params=None,
+                        max_cores=32,
+                        backup=True,
+                        **QCJob_kwargs):
+        """
+        Optimize a structure, perform a frequency calculation to determine
+        vibrational modes and thermodynamics, and then perform a single-point
+        calculation to correct for errors in earlier calculations.
+
+        :param qchem_command: String describing how to call qchem.
+        :param multimode: How to perform multiprocessing. Can be "openmp" or
+        "mpi"
+        :param input_file: String describing location of QChem input file
+        :param output_file: String describing location of QChem output file
+        :param qclog_file: String describing location of log file
+        :param sp_params: Dict describing the input parameters for single-point
+        calculations. If None, the same parameters from opt and freq will be
+        used.
+        :param max_cores: For passthrough to QCJob.
+        :param backup: bool. If True (default), then all input files will be
+        backed up.
+        :param QCJob_kwargs: Passthrough kwargs to QCJob. See
+        :class:`custodian.qchem.new_jobs.QCJob`.
+        :return:
+        """
+
+        if not os.path.exists(input_file):
+            raise AssertionError('Input file must be present!')
+        orig_opt_input = QCInput.from_file(input_file)
+        orig_freq_rem = copy.deepcopy(orig_opt_input.rem)
+        orig_freq_rem["job_type"] = "freq"
+
+        yield (QCJob(
+            qchem_command=qchem_command,
+            multimode=multimode,
+            input_file=input_file,
+            output_file=output_file,
+            qclog_file=qclog_file,
+            suffix=".opt",
+            backup=backup,
+            **QCJob_kwargs))
+        opt_outdata = QCOutput(output_file + ".opt").data
+
+        if opt_outdata["structure_change"] == "unconnected_fragments":
+            raise RuntimeError(
+                "Unstable molecule broke into unconnected fragments! Exiting...")
+
+        freq_QCInput = QCInput(
+            molecule=opt_outdata.get("molecule_from_optimized_geometry"),
+            rem=orig_freq_rem,
+            opt=orig_opt_input.opt,
+            pcm=orig_opt_input.pcm,
+            solvent=orig_opt_input.solvent,
+            smx=orig_opt_input.smx)
+        freq_QCInput.write_file(input_file)
+
+        yield (QCJob(
+            qchem_command=qchem_command,
+            multimode=multimode,
+            input_file=input_file,
+            output_file=output_file,
+            qclog_file=qclog_file,
+            max_cores=max_cores,
+            suffix=".freq",
+            backup=backup,
+            **QCJob_kwargs))
+
+        outdata = QCOutput(output_file + ".freq").data
+        errors = outdata.get("errors")
+        if len(errors) != 0:
+            raise AssertionError(
+                "No errors should be encountered in frequency calculations!")
+
+        if sp_params is not None:
+            sp_input = QCInput(
+                molecule=opt_outdata.get("molecule_from_optimized_geometry"),
+                rem=sp_params.get("rem", {"method": "wb97x-d",
+                                          "basis": "6-311++g(d,p)"}),
+                opt=sp_params.get("opt", None),
+                pcm=sp_params.get("pcm", None),
+                solvent=sp_params.get("solvent", None),
+                smx=sp_params.get("smx", None))
+        else:
+            orig_sp_rem = copy.deepcopy(orig_opt_input.rem)
+            orig_sp_rem["job_type"] = "sp"
+            sp_input = QCInput(
+                molecule=opt_outdata.get("molecule_from_optimized_geometry"),
+                rem=orig_sp_rem,
+                opt=orig_opt_input.opt,
+                pcm=orig_opt_input.pcm,
+                solvent=orig_opt_input.solvent,
+                smx=orig_opt_input.smx)
+
+        sp_input.write_file(input_file)
+        yield (QCJob(qchem_command=qchem_command,
+                     multimode=multimode,
+                     input_file=input_file,
+                     output_file=output_file,
+                     qclog_file=qclog_file,
+                     max_cores=max_cores,
+                     suffix=".sp",
+                     backup=backup,
+                     **QCJob_kwargs))
+
 
 def perturb_coordinates(old_coords, negative_freq_vecs, molecule_perturb_scale,
                         reversed_direction):

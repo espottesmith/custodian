@@ -56,6 +56,7 @@ class QCJobTest(TestCase):
             self.assertEqual(putenv_patch.call_args_list[0][0][0], "QCSCRATCH")
             self.assertEqual(putenv_patch.call_args_list[0][0][1], "/not/default/scratch/")
 
+
 class OptFFTest(TestCase):
     def setUp(self):
         os.makedirs(scr_dir)
@@ -109,6 +110,7 @@ class OptFFTest(TestCase):
         self.assertEqual(QCInput.from_file(os.path.join(test_dir,"FF_working/test.qin.freq_1")).as_dict(),QCInput.from_file(os.path.join(scr_dir,"test.qin")).as_dict())
         self.assertRaises(StopIteration,myjob.__next__)
 
+
 class OptFFTest1(TestCase):
     def setUp(self):
         os.makedirs(scr_dir)
@@ -130,6 +132,87 @@ class OptFFTest1(TestCase):
                         suffix=".opt_0",
                         backup=True).as_dict()
         self.assertEqual(next(myjob).as_dict(),expected_next)
+        self.assertRaises(StopIteration,myjob.__next__)
+
+
+class OptFreqSpTest(TestCase):
+    def setUp(self):
+        os.makedirs(scr_dir)
+        shutil.copyfile(os.path.join(test_dir, "opt_freq_sp_job/test.qin"),
+                        os.path.join(scr_dir, "test.qin"))
+        shutil.copyfile(os.path.join(test_dir,"opt_freq_sp_job/test.qin.opt"),
+                        os.path.join(scr_dir,"test.qin.opt"))
+        shutil.copyfile(os.path.join(test_dir, "opt_freq_sp_job/test.qin.freq"),
+                        os.path.join(scr_dir, "test.qin.freq"))
+        shutil.copyfile(os.path.join(test_dir, "opt_freq_sp_job/test.qin.sp"),
+                        os.path.join(scr_dir, "test.qin.sp"))
+        shutil.copyfile(os.path.join(test_dir,"opt_freq_sp_job/test.qout.opt"),
+                        os.path.join(scr_dir,"test.qout.opt"))
+        shutil.copyfile(os.path.join(test_dir, "opt_freq_sp_job/test.qout.freq"),
+                        os.path.join(scr_dir, "test.qout.freq"))
+        shutil.copyfile(os.path.join(test_dir, "opt_freq_sp_job/test.qout.sp"),
+                        os.path.join(scr_dir, "test.qout.sp"))
+        os.chdir(scr_dir)
+
+    def tearDown(self):
+        os.chdir(cwd)
+        shutil.rmtree(scr_dir)
+
+    def test_OptFreqSp(self):
+        sp_params = {
+            "rem": {
+                "job_type": "sp",
+                "method": "wb97x-d",
+                "basis": "6-311++g(d,p)",
+                "max_scf_cycles": 200,
+                "gen_scfman": True,
+                "scf_algorithm": "diis",
+                "solvent_method": "pcm"
+            },
+            "pcm": {
+                "theory": "iefpcm"
+            },
+            "solvent": {
+                "dielectric": 80.4
+            }
+        }
+
+        myjob = QCJob.opt_freq_sp_job(qchem_command="qchem",
+                                      input_file="test.qin",
+                                      output_file="test.qout",
+                                      qclog_file="test.qclog",
+                                      sp_params=sp_params,
+                                      backup=False)
+        expected_next = QCJob(
+                        qchem_command="qchem",
+                        multimode="openmp",
+                        input_file="test.qin",
+                        output_file="test.qout",
+                        qclog_file="test.qclog",
+                        suffix=".opt",
+                        backup=False).as_dict()
+        self.assertEqual(next(myjob).as_dict(), expected_next)
+        expected_next = QCJob(
+                        qchem_command="qchem",
+                        multimode="openmp",
+                        input_file="test.qin",
+                        output_file="test.qout",
+                        qclog_file="test.qclog",
+                        suffix=".freq",
+                        backup=False).as_dict()
+        self.assertEqual(next(myjob).as_dict(),expected_next)
+        self.assertEqual(QCInput.from_file(os.path.join(test_dir,"opt_freq_sp_job/test.qin.freq")).as_dict(),QCInput.from_file(os.path.join(scr_dir,"test.qin")).as_dict())
+        expected_next = QCJob(
+                        qchem_command="qchem",
+                        multimode="openmp",
+                        input_file="test.qin",
+                        output_file="test.qout",
+                        qclog_file="test.qclog",
+                        suffix=".sp",
+                        backup=False).as_dict()
+        self.assertEqual(next(myjob).as_dict(),expected_next)
+        self.assertEqual(QCInput.from_file(os.path.join(test_dir,"opt_freq_sp_job/test.qin.sp")).as_dict(),QCInput.from_file(os.path.join(scr_dir,"test.qin")).as_dict())
+
         self.assertRaises(StopIteration,myjob.__next__)
 
 

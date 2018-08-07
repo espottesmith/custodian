@@ -1,0 +1,47 @@
+You are running Q-Chem version: 5.0.2
+
+#
+# job setting
+#
+local host:  nid11390
+current dir: /global/u1/e/ewcss/data/with_water/block_2018-07-06-16-46-59-566763/launcher_2018-07-06-17-07-43-324718
+input file:  /global/homes/e/ewcss/data/with_water/49_18490/pro_0.in
+output file: /global/homes/e/ewcss/data/with_water/49_18490/pro_0.out
+nprocs     : 1
+nthreads   : 272
+#
+# qchem installation setting
+#
+QC:          /global/common/cori/software/qchem/5.1beta
+QCAUX:       /global/common/cori/software/qchem/5.1beta/qcaux
+QCPROG:      /global/common/cori/software/qchem/5.1beta/exe/qcprog.exe
+QCPROG_S:    /global/common/cori/software/qchem/5.1beta/exe/qcprog.exe
+PARALLEL:    -DPARALLEL
+QCMPI:       slurm
+#
+# qchem directory setting
+#
+qcrun:       qchem72988
+QCSCRATCH:   /dev/shm/qcscratch/
+QCLOCALSCR:  /tmp
+QCTMPDIR:    /tmp
+QCFILEPREF:  /tmp/qchem72988
+QCSAVEDIR:   
+workdirs:    /tmp/qchem72988
+workdir0:    /tmp/qchem72988
+partmpdirs =  
+#
+# parallel setting
+#
+QCRSH:           ssh
+QCMPI:           slurm
+QCMPIRUN:        srun
+QCMACHINEFILE:   
+
+#
+# env setting
+#
+exported envs:   QC QCAUX QCSCRATCH QCRUNNAME QCFILEPREF QCPROG QCPROG_S GUIFILE
+remove work dirs /tmp/qchem72988.0 -- /tmp/qchem72988.0
+rm -rf /tmp/qchem72988.0
+rm -rf /tmp/qchem72988
