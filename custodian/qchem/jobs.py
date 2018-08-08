@@ -265,7 +265,7 @@ class QCJob(Job):
         """
         Optimize a structure, perform a frequency calculation to determine
         vibrational modes and thermodynamics, and then perform a single-point
-        calculation to correct for errors in earlier calculations.
+        calculation to correct for errors.
 
         :param qchem_command: String describing how to call qchem.
         :param multimode: How to perform multiprocessing. Can be "openmp" or
