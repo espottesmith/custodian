@@ -66,7 +66,7 @@ class QChemErrorHandlerTest(TestCase):
         self._check_equivalent_inputs("unable_to_determine_lamda.qin.0",
                                       "unable_to_determine_lamda.qin.1")
 
-    def test_linear_dependent_basis(self):
+    def test_linear_dependent_basis_and_FileMan(self):
         for ii in range(1, 3):
             shutil.copyfile(
                 os.path.join(test_dir,
@@ -84,7 +84,8 @@ class QChemErrorHandlerTest(TestCase):
             output_file="unable_to_determine_lamda.qout.1")
         h.check()
         d = h.correct()
-        self.assertEqual(d["errors"], ['linear_dependent_basis'])
+        self.assertEqual(d["errors"], ['premature_end_FileMan_error'])
+        self.assertEqual(d["warnings"]["linear_dependence"], True)
         self.assertEqual(d["actions"], [{"scf_algorithm": "rca_diis"}])
         self._check_equivalent_inputs("unable_to_determine_lamda.qin.1",
                                       "unable_to_determine_lamda.qin.2")
@@ -274,6 +275,21 @@ class QChemErrorHandlerTest(TestCase):
         self.assertEqual(d["actions"], [{"rerun job as-is"}])
         self._check_equivalent_inputs("mol.qin.last",
                                       "mol.qin")
+
+    def test_OOS_read_hess(self):
+        shutil.copyfile(
+            os.path.join(test_dir, "OOS_read_hess.qin"),
+            os.path.join(scr_dir, "mol.qin"))
+        shutil.copyfile(
+            os.path.join(test_dir, "OOS_read_hess.qout"),
+            os.path.join(scr_dir, "mol.qout"))
+        h = QChemErrorHandler(
+            input_file="mol.qin", output_file="mol.qout")
+        h.check()
+        d = h.correct()
+        self.assertEqual(d["errors"], ['out_of_opt_cycles'])
+        self.assertEqual(d["actions"], [{"molecule": "molecule_from_last_geometry"}, {"geom_opt_hessian": "deleted"}])
+        self._check_equivalent_inputs(os.path.join(test_dir, "OOS_read_hess_next.qin"),"mol.qin")
 
     def tearDown(self):
         os.chdir(cwd)

@@ -13,7 +13,7 @@ import subprocess
 import numpy as np
 from pymatgen.core import Molecule
 from pymatgen.io.qchem.inputs import QCInput
-from pymatgen.io.qchem.outputs import QCOutput
+from pymatgen.io.qchem.outputs import QCOutput, check_for_structure_changes
 from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
 from custodian.custodian import Job
@@ -143,7 +143,7 @@ class QCJob(Job):
                                      max_iterations=10,
                                      max_molecule_perturb_scale=0.3,
                                      check_connectivity=True,
-                                     linked=False,
+                                     linked=True,
                                      **QCJob_kwargs):
         """
         Optimize a structure and calculate vibrational frequencies to check if the
@@ -175,9 +175,7 @@ class QCJob(Job):
             orig_input = QCInput.from_file(input_file)
             freq_rem = copy.deepcopy(orig_input.rem)
             freq_rem["job_type"] = "freq"
-            freq_rem["SCF_GUESS"] = "read"
             opt_rem = copy.deepcopy(orig_input.rem)
-            opt_rem["SCF_GUESS"] = "read"
             opt_rem["GEOM_OPT_HESSIAN"] = "read"
             first = True
             energy_history = []
@@ -203,7 +201,7 @@ class QCJob(Job):
                 else:
                     energy_history.append(opt_outdata.get("final_energy"))
                     freq_QCInput = QCInput(
-                        molecule="read",
+                        molecule=opt_outdata.get("molecule_from_optimized_geometry"),
                         rem=freq_rem,
                         opt=orig_input.opt,
                         pcm=orig_input.pcm,
@@ -235,7 +233,7 @@ class QCJob(Job):
                                 print("Energy change below cutoff!")
                                 break
                         opt_QCInput = QCInput(
-                            molecule="read",
+                            molecule=opt_outdata.get("molecule_from_optimized_geometry"),
                             rem=opt_rem,
                             opt=orig_input.opt,
                             pcm=orig_input.pcm,
@@ -394,16 +392,8 @@ class QCJob(Job):
                                 charge=orig_charge,
                                 spin_multiplicity=orig_multiplicity)
                             if check_connectivity:
-                                old_molgraph = MoleculeGraph.with_local_env_strategy(ref_mol,
-                                                                   OpenBabelNN(),
-                                                                   reorder=False,
-                                                                   extend_structure=False)
-                                new_molgraph = MoleculeGraph.with_local_env_strategy(new_molecule,
-                                                                   OpenBabelNN(),
-                                                                   reorder=False,
-                                                                   extend_structure=False)
-                                if old_molgraph.isomorphic_to(new_molgraph):
-                                    structure_successfully_perturbed = True
+                                structure_successfully_perturbed = check_for_structure_changes(ref_mol, new_molecule) == "no_change"
+                                if structure_successfully_perturbed:
                                     break
                         if not structure_successfully_perturbed:
                             raise Exception(
