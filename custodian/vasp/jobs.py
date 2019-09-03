@@ -15,7 +15,7 @@ from monty.os.path import which
 from monty.shutil import decompress_dir
 from monty.serialization import dumpfn, loadfn
 
-from custodian.custodian import Job
+from custodian.custodian import Job, SENTRY_DSN
 from custodian.utils import backup
 from custodian.vasp.interpreter import VaspModder
 from custodian.vasp.handlers import VASP_BACKUP_FILES
@@ -60,7 +60,7 @@ class VaspJob(Job):
 
     def __init__(self, vasp_cmd, output_file="vasp.out",
                  stderr_file="std_err.txt", suffix="", final=True,
-                 backup=True, auto_npar=True, auto_gamma=True,
+                 backup=True, auto_npar=False, auto_gamma=True,
                  settings_override=None, gamma_vasp_cmd=None,
                  copy_magmom=False, auto_continue=False):
         """
@@ -111,7 +111,7 @@ class VaspJob(Job):
                 where the CHGCAR and WAVECAR are sometimes deleted (due to
                 changes in fft grid, etc.). Only applies to non-final runs.
             auto_continue (bool): Whether to automatically continue a run
-                if a STOPCAR is present. This is very usefull if using the
+                if a STOPCAR is present. This is very useful if using the
                 wall-time handler which will write a read-only STOPCAR to
                 prevent VASP from deleting it once it finishes
         """
@@ -127,6 +127,21 @@ class VaspJob(Job):
         self.gamma_vasp_cmd = gamma_vasp_cmd
         self.copy_magmom = copy_magmom
         self.auto_continue = auto_continue
+        
+        if SENTRY_DSN:
+          # if using Sentry logging, add specific VASP executable to scope
+          from sentry_sdk import configure_scope
+          with configure_scope() as scope:
+              try:
+                  if isinstance(vasp_cmd, str):
+                      vasp_path = which(vasp_cmd.split(' ')[-1])
+                  elif isinstance(vasp_cmd, list):
+                      vasp_path = which(vasp_cmd[-1])
+                  scope.set_tag("vasp_path", vasp_path)
+                  scope.set_tag("vasp_cmd", vasp_cmd)
+              except:
+                  logger.error("Failed to detect VASP path: {}".format(vasp_cmd), exc_info=True)
+                  scope.set_tag("vasp_cmd", vasp_cmd)
 
     def setup(self):
         """
