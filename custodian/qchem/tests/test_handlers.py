@@ -86,14 +86,7 @@ class QChemErrorHandlerTest(TestCase):
         d = h.correct()
         self.assertEqual(d["errors"], ['premature_end_FileMan_error'])
         self.assertEqual(d["warnings"]["linear_dependence"], True)
-        self.assertEqual(d["actions"], [{"scf_algorithm": "rca_diis"}])
-        self._check_equivalent_inputs("unable_to_determine_lamda.qin.1",
-                                      "unable_to_determine_lamda.qin.2")
-
-        h = QChemErrorHandler(
-            input_file="unable_to_determine_lamda.qin.2",
-            output_file="unable_to_determine_lamda.qout.2")
-        self.assertEqual(h.check(), False)
+        self.assertEqual(d["actions"], [{"thresh": "14"}])
 
     def test_failed_to_transform(self):
         for ii in range(2):
@@ -146,7 +139,7 @@ class QChemErrorHandlerTest(TestCase):
         h.check()
         d = h.correct()
         self.assertEqual(d["errors"], ['SCF_failed_to_converge'])
-        self.assertEqual(d["actions"], [{"scf_algorithm": "gdm"}])
+        self.assertEqual(d["actions"], [{"thresh": "14"}])
 
     def test_out_of_opt_cycles(self):
         shutil.copyfile(
@@ -226,7 +219,7 @@ class QChemErrorHandlerTest(TestCase):
         h.check()
         d = h.correct()
         self.assertEqual(d["errors"], ['failed_to_read_input'])
-        self.assertEqual(d["actions"], [{"rerun job as-is"}])
+        self.assertEqual(d["actions"], [{"rerun_job_no_changes": True}])
         self._check_equivalent_inputs("unable_lamda_weird.qin.last",
                                       "unable_lamda_weird.qin")
 
@@ -256,7 +249,7 @@ class QChemErrorHandlerTest(TestCase):
         h.check()
         d = h.correct()
         self.assertEqual(d["errors"], ['read_molecule_error'])
-        self.assertEqual(d["actions"], [{"rerun job as-is"}])
+        self.assertEqual(d["actions"], [{"rerun_job_no_changes": True}])
         self._check_equivalent_inputs("mol.qin.last",
                                       "mol.qin")
 
@@ -272,7 +265,7 @@ class QChemErrorHandlerTest(TestCase):
         h.check()
         d = h.correct()
         self.assertEqual(d["errors"], ['never_called_qchem'])
-        self.assertEqual(d["actions"], [{"rerun job as-is"}])
+        self.assertEqual(d["actions"], [{"rerun_job_no_changes": True}])
         self._check_equivalent_inputs("mol.qin.last",
                                       "mol.qin")
 
