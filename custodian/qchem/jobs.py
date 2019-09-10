@@ -5,7 +5,6 @@ import math
 
 # New QChem job module
 
-
 import os
 import shutil
 import copy
@@ -15,8 +14,6 @@ import numpy as np
 from pymatgen.core import Molecule
 from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.outputs import QCOutput, check_for_structure_changes
-from pymatgen.analysis.graphs import MoleculeGraph
-from pymatgen.analysis.local_env import OpenBabelNN
 from custodian.custodian import Job
 
 
@@ -176,17 +173,17 @@ class QCJob(Job):
 
             for ii in range(max_iterations):
                 yield (QCJob(
-                qchem_command=qchem_command,
-                multimode=multimode,
-                input_file=input_file,
-                output_file=output_file,
-                qclog_file=qclog_file,
-                suffix=".{}_".format(opt_method) + str(ii),
-                scratch_dir=os.getcwd(),
-                save_scratch=True,
-                save_name="chain_scratch",
-                backup=first,
-                **QCJob_kwargs))
+                    qchem_command=qchem_command,
+                    multimode=multimode,
+                    input_file=input_file,
+                    output_file=output_file,
+                    qclog_file=qclog_file,
+                    suffix=".{}_".format(opt_method) + str(ii),
+                    scratch_dir=os.getcwd(),
+                    save_scratch=True,
+                    save_name="chain_scratch",
+                    backup=first,
+                    **QCJob_kwargs))
                 opt_outdata = QCOutput(output_file + ".{}_".format(opt_method) + str(ii)).data
                 first = False
                 if opt_outdata["structure_change"] == "unconnected_fragments" and not opt_outdata["completion"]:
