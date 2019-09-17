@@ -147,6 +147,9 @@ class QCJob(Job):
                 can be applied to the molecule. Defaults to 0.3.
             check_connectivity (bool): Whether to check differences in connectivity
                 introduced by structural perturbation. Defaults to True.
+            linked (bool):
+            transition_state (bool): If True (default False), use a ts
+                optimization (search for a saddle point instead of a minimum)
             **QCJob_kwargs: Passthrough kwargs to QCJob. See
                 :class:`custodian.qchem.jobs.QCJob`.
         """
