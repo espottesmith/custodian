@@ -218,27 +218,41 @@ class QCJob(Job):
                     errors = outdata.get("errors")
                     if len(errors) != 0:
                         raise AssertionError('No errors should be encountered while flattening frequencies!')
-                    if outdata.get('frequencies')[0] > 0.0:
-                        print("All frequencies positive!")
-                        break
-                    elif abs(outdata.get('frequencies')[0]) < 15.0 and outdata.get('frequencies')[1] > 0.0:
-                        print("One negative frequency smaller than 15.0 - not worth further flattening!")
-                        break
+                    if transition_state:
+                        if outdata.get('frequencies')[0] < 0.0 and outdata.get('frequencies')[1] > 0.0:
+                            print("Saddle point found!")
+                            break
+                        else:
+                            opt_QCInput = QCInput(
+                                molecule=opt_outdata.get("molecule_from_optimized_geometry"),
+                                rem=opt_rem,
+                                opt=orig_input.opt,
+                                pcm=orig_input.pcm,
+                                solvent=orig_input.solvent,
+                                smx=orig_input.smx)
+                            opt_QCInput.write_file(input_file)
                     else:
-                        if len(energy_history) > 1:
-                            if abs(energy_history[-1]-energy_history[-2]) < energy_diff_cutoff:
-                                print("Energy change below cutoff!")
-                                break
-                        opt_QCInput = QCInput(
-                            molecule=opt_outdata.get("molecule_from_optimized_geometry"),
-                            rem=opt_rem,
-                            opt=orig_input.opt,
-                            pcm=orig_input.pcm,
-                            solvent=orig_input.solvent,
-                            smx=orig_input.smx)
-                        opt_QCInput.write_file(input_file)
-            if os.path.exists(os.path.join(os.getcwd(),"chain_scratch")):
-                shutil.rmtree(os.path.join(os.getcwd(),"chain_scratch"))
+                        if outdata.get('frequencies')[0] > 0.0:
+                            print("All frequencies positive!")
+                            break
+                        elif abs(outdata.get('frequencies')[0]) < 15.0 and outdata.get('frequencies')[1] > 0.0:
+                            print("One negative frequency smaller than 15.0 - not worth further flattening!")
+                            break
+                        else:
+                            if len(energy_history) > 1:
+                                if abs(energy_history[-1]-energy_history[-2]) < energy_diff_cutoff:
+                                    print("Energy change below cutoff!")
+                                    break
+                            opt_QCInput = QCInput(
+                                molecule=opt_outdata.get("molecule_from_optimized_geometry"),
+                                rem=opt_rem,
+                                opt=orig_input.opt,
+                                pcm=orig_input.pcm,
+                                solvent=orig_input.solvent,
+                                smx=orig_input.smx)
+                            opt_QCInput.write_file(input_file)
+            if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
+                shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
 
         else:
             if not os.path.exists(input_file):
