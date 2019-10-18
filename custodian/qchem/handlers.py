@@ -219,6 +219,10 @@ class QChemErrorHandler(ErrorHandler):
         return {"errors": self.errors, "warnings": self.warnings, "actions": actions}
 
 
+class QChemOptErrorHandler(ErrorHandler):
+    pass
+
+
 class QChemSCFErrorHandler(ErrorHandler):
     """
     QChem ErrorHandler class that addresses SCF non-convergence.
