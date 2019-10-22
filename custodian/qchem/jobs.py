@@ -434,7 +434,6 @@ class QCJob(Job):
                                             max_molecule_perturb_scale=0.3,
                                             check_connectivity=True,
                                             linked=True,
-                                            transition_state=False,
                                             **QCJob_kwargs):
         """
 
@@ -469,11 +468,6 @@ class QCJob(Job):
         if not os.path.exists(input_file):
             raise AssertionError('Input file must be present!')
 
-        if transition_state:
-            opt_method = "ts"
-        else:
-            opt_method = "opt"
-
         orig_input = QCInput.from_file(input_file)
         if orig_input.rem["geom_opt_max_cycles"] != 1:
             raise ValueError("If Berny is being used, all geometry "
@@ -502,13 +496,13 @@ class QCJob(Job):
                         input_file=input_file,
                         output_file=output_file,
                         qclog_file=qclog_file,
-                        suffix=".{}_{}_{}".format(opt_method, str(ii), str(jj)),
+                        suffix=".opt_{}_{}".format(str(ii), str(jj)),
                         scratch_dir=os.getcwd(),
                         save_scratch=True,
                         save_name="chain_scratch",
                         backup=first,
                         **QCJob_kwargs))
-                    opt_outdata = QCOutput(output_file + ".{}_{}_{}".format(opt_method, str(ii), str(jj))).data
+                    opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(str(ii), str(jj))).data
 
                     energy = opt_outdata["energy_trajectory"][0]
                     if opt_outdata["solvent_method"] is None:
@@ -532,7 +526,7 @@ class QCJob(Job):
                             del opt_rem["geom_opt_hessian"]
 
                         struct_change = check_for_structure_changes(old_mol, new_mol)
-                        if struct_change == "unconnected fragments":
+                        if struct_change == "unconnected fragments" and not optimizer.transition_state:
                             print("Unstable molecule broke into unconnected fragments which failed to optimize. Exiting...")
                             unstable = True
                             break
@@ -574,19 +568,19 @@ class QCJob(Job):
                     errors = outdata.get("errors")
                     if len(errors) != 0:
                         raise AssertionError('No errors should be encountered while flattening frequencies!')
-                    if transition_state:
+                    if optimizer.transition_state:
                         if outdata.get('frequencies')[0] < 0.0 and outdata.get('frequencies')[1] > 0.0:
                             print("Saddle point found!")
                             break
                         else:
-                             opt_rem["geom_opt_hessian"] = "read"
-                             opt_input = QCInput(molecule=optimized_mol,
-                                                 rem=opt_rem,
-                                                 opt=orig_input.opt,
-                                                 pcm=orig_input.pcm,
-                                                 solvent=orig_input.solvent,
-                                                 smx=orig_input.smx)
-                             opt_input.write_file(input_file)
+                            opt_rem["geom_opt_hessian"] = "read"
+                            opt_input = QCInput(molecule=optimized_mol,
+                                                rem=opt_rem,
+                                                opt=orig_input.opt,
+                                                pcm=orig_input.pcm,
+                                                solvent=orig_input.solvent,
+                                                smx=orig_input.smx)
+                            opt_input.write_file(input_file)
                     else:
                         if outdata.get('frequencies')[0] > 0.0:
                             print("All frequencies positive!")
@@ -600,11 +594,11 @@ class QCJob(Job):
                                     print("Energy change below cutoff!")
                                     break
                             opt_input = QCInput(molecule=optimized_mol,
-                                                  rem=opt_rem,
-                                                  opt=orig_input.opt,
-                                                  pcm=orig_input.pcm,
-                                                  solvent=orig_input.solvent,
-                                                  smx=orig_input.smx)
+                                                rem=opt_rem,
+                                                opt=orig_input.opt,
+                                                pcm=orig_input.pcm,
+                                                solvent=orig_input.solvent,
+                                                smx=orig_input.smx)
                             opt_input.write_file(input_file)
             if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
                 shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
@@ -636,10 +630,10 @@ class QCJob(Job):
                         input_file=input_file,
                         output_file=output_file,
                         qclog_file=qclog_file,
-                        suffix=".{}_{}_{}".format(opt_method, str(ii), str(jj)),
+                        suffix=".opt_{}_{}".format(str(ii), str(jj)),
                         backup=first,
                         **QCJob_kwargs))
-                    opt_outdata = QCOutput(output_file + ".{}_{}_{}".format(opt_method, str(ii), str(jj))).data
+                    opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(str(ii), str(jj))).data
 
                     energy = opt_outdata["energy_trajectory"][0]
                     if opt_outdata["solvent_method"] is None:
@@ -676,7 +670,7 @@ class QCJob(Job):
                                             smx=orig_input.smx)
                         opt_input.write_file(input_file)
 
-                    if opt_outdata["structure_change"] == "unconnected_fragments" and not converged:
+                    if opt_outdata["structure_change"] == "unconnected_fragments" and not converged and not optimizer.transition_state:
                         print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
                         unstable = True
                         break
@@ -707,7 +701,7 @@ class QCJob(Job):
                     if len(errors) != 0:
                         raise AssertionError('No errors should be encountered while flattening frequencies!')
                     good_freqs = True
-                    if transition_state:
+                    if optimizer.transition_state:
                         if outdata.get('frequencies')[0] < 0.0 and outdata.get('frequencies')[1] > 0.0:
                             print("Saddle point found!")
                             break

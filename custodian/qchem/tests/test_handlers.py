@@ -7,10 +7,10 @@ import shutil
 from unittest import TestCase
 import unittest
 
-from custodian.qchem.handlers import QChemErrorHandler
+from custodian.qchem.handlers import QChemErrorHandler, QChemOptErrorHandler
 from pymatgen.io.qchem.inputs import QCInput
 
-__author__ = "Samuel Blau, Brandon Woods, Shyam Dwaraknath"
+__author__ = "Samuel Blau, Brandon Woods, Shyam Dwaraknath, Evan Spotte-Smith"
 __copyright__ = "Copyright 2018, The Materials Project"
 __version__ = "0.1"
 __maintainer__ = "Samuel Blau"
@@ -31,6 +31,9 @@ class QChemErrorHandlerTest(TestCase):
     def setUp(self):
         os.makedirs(scr_dir)
         os.chdir(scr_dir)
+
+    def tearDown(self):
+        os.rmdir(scr_dir)
 
     def _check_equivalent_inputs(self, input1, input2):
         self.assertEqual(
@@ -141,71 +144,6 @@ class QChemErrorHandlerTest(TestCase):
         self.assertEqual(d["errors"], ['SCF_failed_to_converge'])
         self.assertEqual(d["actions"], [{"thresh": "14"}])
 
-    def test_out_of_opt_cycles(self):
-        shutil.copyfile(
-            os.path.join(test_dir, "crowd_gradient.qin.2"),
-            os.path.join(scr_dir, "crowd_gradient.qin.2"))
-        shutil.copyfile(
-            os.path.join(test_dir, "crowd_gradient.qout.2"),
-            os.path.join(scr_dir, "crowd_gradient.qout.2"))
-        shutil.copyfile(
-            os.path.join(test_dir, "crowd_gradient.qin.3"),
-            os.path.join(scr_dir, "crowd_gradient.qin.3"))
-
-        h = QChemErrorHandler(
-            input_file="crowd_gradient.qin.2",
-            output_file="crowd_gradient.qout.2")
-        h.check()
-        d = h.correct()
-        self.assertEqual(d["errors"], ['out_of_opt_cycles'])
-        self.assertEqual(d["actions"],
-                         [{
-                             "geom_max_cycles:": 200
-                         }, {
-                             "molecule": "molecule_from_last_geometry"
-                         }])
-        self._check_equivalent_inputs("crowd_gradient.qin.2",
-                                      "crowd_gradient.qin.3")
-
-    def test_advanced_out_of_opt_cycles(self):
-        shutil.copyfile(
-            os.path.join(test_dir, "2564_complete/error1/mol.qin"),
-            os.path.join(scr_dir, "mol.qin"))
-        shutil.copyfile(
-            os.path.join(test_dir, "2564_complete/error1/mol.qout"),
-            os.path.join(scr_dir, "mol.qout"))
-        shutil.copyfile(
-            os.path.join(test_dir, "2564_complete/mol.qin.opt_0"),
-            os.path.join(scr_dir, "mol.qin.opt_0"))
-        h = QChemErrorHandler(
-            input_file="mol.qin", output_file="mol.qout")
-        h.check()
-        d = h.correct()
-        self.assertEqual(d["errors"], ['out_of_opt_cycles'])
-        self.assertEqual(d["actions"], [{"molecule": "molecule_from_last_geometry"}])
-        self._check_equivalent_inputs("mol.qin.opt_0",
-                                      "mol.qin")
-        self.assertEqual(h.opt_error_history[0], "more_bonds")
-        shutil.copyfile(
-            os.path.join(test_dir, "2564_complete/mol.qin.opt_0"),
-            os.path.join(scr_dir, "mol.qin"))
-        shutil.copyfile(
-            os.path.join(test_dir, "2564_complete/mol.qout.opt_0"),
-            os.path.join(scr_dir, "mol.qout"))
-        h.check()
-        self.assertEqual(h.opt_error_history, [])
-
-    def test_advanced_out_of_opt_cycles1(self):
-        shutil.copyfile(
-            os.path.join(test_dir, "2620_complete/mol.qin.opt_0"),
-            os.path.join(scr_dir, "mol.qin"))
-        shutil.copyfile(
-            os.path.join(test_dir, "2620_complete/mol.qout.opt_0"),
-            os.path.join(scr_dir, "mol.qout"))
-        h = QChemErrorHandler(
-            input_file="mol.qin", output_file="mol.qout")
-        self.assertEqual(h.check(), False)
-
     def test_failed_to_read_input(self):
         shutil.copyfile(
             os.path.join(test_dir, "unable_lamda_weird.qin"),
@@ -287,6 +225,81 @@ class QChemErrorHandlerTest(TestCase):
     def tearDown(self):
         os.chdir(cwd)
         shutil.rmtree(scr_dir)
+
+
+class QChemOutErrorHandlerTest(TestCase):
+    def setUp(self):
+        os.makedirs(scr_dir)
+        os.chdir(scr_dir)
+
+    def tearDown(self):
+        os.rmdir(scr_dir)
+
+    def test_out_of_opt_cycles(self):
+        shutil.copyfile(
+            os.path.join(test_dir, "crowd_gradient.qin.2"),
+            os.path.join(scr_dir, "crowd_gradient.qin.2"))
+        shutil.copyfile(
+            os.path.join(test_dir, "crowd_gradient.qout.2"),
+            os.path.join(scr_dir, "crowd_gradient.qout.2"))
+        shutil.copyfile(
+            os.path.join(test_dir, "crowd_gradient.qin.3"),
+            os.path.join(scr_dir, "crowd_gradient.qin.3"))
+
+        h = QChemOptErrorHandler(
+            input_file="crowd_gradient.qin.2",
+            output_file="crowd_gradient.qout.2")
+        h.check()
+        d = h.correct()
+        self.assertEqual(d["errors"], ['out_of_opt_cycles'])
+        self.assertEqual(d["actions"],
+                         [{
+                             "geom_max_cycles:": 200
+                         }, {
+                             "molecule": "molecule_from_last_geometry"
+                         }])
+        self._check_equivalent_inputs("crowd_gradient.qin.2",
+                                      "crowd_gradient.qin.3")
+
+    def test_advanced_out_of_opt_cycles(self):
+        shutil.copyfile(
+            os.path.join(test_dir, "2564_complete/error1/mol.qin"),
+            os.path.join(scr_dir, "mol.qin"))
+        shutil.copyfile(
+            os.path.join(test_dir, "2564_complete/error1/mol.qout"),
+            os.path.join(scr_dir, "mol.qout"))
+        shutil.copyfile(
+            os.path.join(test_dir, "2564_complete/mol.qin.opt_0"),
+            os.path.join(scr_dir, "mol.qin.opt_0"))
+        h = QChemOptErrorHandler(
+            input_file="mol.qin", output_file="mol.qout")
+        h.check()
+        d = h.correct()
+        self.assertEqual(d["errors"], ['out_of_opt_cycles'])
+        self.assertEqual(d["actions"], [{"molecule": "molecule_from_last_geometry"}])
+        self._check_equivalent_inputs("mol.qin.opt_0",
+                                      "mol.qin")
+        self.assertEqual(h.opt_error_history[0], "more_bonds")
+        shutil.copyfile(
+            os.path.join(test_dir, "2564_complete/mol.qin.opt_0"),
+            os.path.join(scr_dir, "mol.qin"))
+        shutil.copyfile(
+            os.path.join(test_dir, "2564_complete/mol.qout.opt_0"),
+            os.path.join(scr_dir, "mol.qout"))
+        h.check()
+        self.assertEqual(h.opt_error_history, [])
+
+    def test_advanced_out_of_opt_cycles1(self):
+        shutil.copyfile(
+            os.path.join(test_dir, "2620_complete/mol.qin.opt_0"),
+            os.path.join(scr_dir, "mol.qin"))
+        shutil.copyfile(
+            os.path.join(test_dir, "2620_complete/mol.qout.opt_0"),
+            os.path.join(scr_dir, "mol.qout"))
+        h = QChemOptErrorHandler(
+            input_file="mol.qin", output_file="mol.qout")
+        self.assertEqual(h.check(), False)
+
 
 if __name__ == "__main__":
     unittest.main()
