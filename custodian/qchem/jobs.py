@@ -423,18 +423,18 @@ class QCJob(Job):
                         new_opt_QCInput.write_file(input_file)
 
     @classmethod
-    def berny_opt_with_frequency_flattening(cls,
-                                            optimizer,
-                                            qchem_command,
-                                            multimode="openmp",
-                                            input_file="mol.qin",
-                                            output_file="mol.qout",
-                                            qclog_file="mol.qclog",
-                                            max_iterations=10,
-                                            max_molecule_perturb_scale=0.3,
-                                            check_connectivity=True,
-                                            linked=True,
-                                            **QCJob_kwargs):
+    def berny_opt_with_frequency_flattener(cls,
+                                           optimizer,
+                                           qchem_command,
+                                           multimode="openmp",
+                                           input_file="mol.qin",
+                                           output_file="mol.qout",
+                                           qclog_file="mol.qclog",
+                                           max_iterations=10,
+                                           max_molecule_perturb_scale=0.3,
+                                           check_connectivity=True,
+                                           linked=True,
+                                           **QCJob_kwargs):
         """
 
         Optimize a structure using the Berny optimization algorithm, and
