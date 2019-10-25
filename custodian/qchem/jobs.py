@@ -489,7 +489,7 @@ class QCJob(Job):
                 final_energy = None
                 optimized_mol = None
 
-                for jj in range(optimizer.maxsteps):
+                for jj in range(optimizer.max_steps):
                     yield (QCJob(
                         qchem_command=qchem_command,
                         multimode=multimode,
@@ -546,11 +546,11 @@ class QCJob(Job):
                         raise RuntimeError("Optimization finished with no optimized geometry!")
                     energy_history.append(final_energy)
                     freq_input = QCInput(molecule=optimized_mol,
-                                           rem=freq_rem,
-                                           opt=orig_input.opt,
-                                           pcm=orig_input.pcm,
-                                           solvent=orig_input.solvent,
-                                           smx=orig_input.smx)
+                                         rem=freq_rem,
+                                         opt=orig_input.opt,
+                                         pcm=orig_input.pcm,
+                                         solvent=orig_input.solvent,
+                                         smx=orig_input.smx)
                     freq_input.write_file(input_file)
                     yield (QCJob(
                         qchem_command=qchem_command,
@@ -623,7 +623,7 @@ class QCJob(Job):
                     orig_energy = copy.deepcopy(opt_outdata.get('energy_trajectory')[0])
                 first = False
 
-                for jj in range(optimizer.maxsteps):
+                for jj in range(optimizer.max_steps):
                     yield (QCJob(
                         qchem_command=qchem_command,
                         multimode=multimode,
