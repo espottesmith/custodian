@@ -469,7 +469,7 @@ class QCJob(Job):
             raise AssertionError('Input file must be present!')
 
         orig_input = QCInput.from_file(input_file)
-        if orig_input.rem["geom_opt_max_cycles"] != 1:
+        if str(orig_input.rem["geom_opt_max_cycles"]) != "1":
             raise ValueError("If Berny is being used, all geometry "
                              "optimizations should include only a single step!")
 
