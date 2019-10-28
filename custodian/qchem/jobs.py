@@ -424,7 +424,6 @@ class QCJob(Job):
 
     @classmethod
     def berny_opt_with_frequency_flattener(cls,
-                                           optimizer,
                                            qchem_command,
                                            multimode="openmp",
                                            input_file="mol.qin",
@@ -434,6 +433,7 @@ class QCJob(Job):
                                            max_molecule_perturb_scale=0.3,
                                            check_connectivity=True,
                                            linked=True,
+                                           optimizer_params=None,
                                            **QCJob_kwargs):
         """
 
@@ -444,8 +444,6 @@ class QCJob(Job):
         until all are positive, aka a true minima has been found.
 
         Args:
-            optimizer (berny.Berny): Berny optimizer object. This will be fed
-                energies and gradients from Q-Chem optimization jobs
             qchem_command (str): Command to run QChem.
             multimode (str): Parallelization scheme, either openmp or mpi.
             input_file (str): Name of the QChem input file.
@@ -454,13 +452,12 @@ class QCJob(Job):
                 iterations to perform. Defaults to 10.
             max_molecule_perturb_scale (float): The maximum scaled perturbation that
                 can be applied to the molecule. Defaults to 0.3.
-            max_opt_steps (int): number of Berny optimization steps
             check_connectivity (bool): Whether to check differences in connectivity
                 introduced by structural perturbation. Defaults to True.
             linked (bool): If True (default), share scratch files between
                 calculations.
-            transition_state (bool): If True (default False), use a ts
-                optimization (search for a saddle point instead of a minimum)
+            optimizer_params (dict): Dictionary with parameters for
+                BernyOptimizer
             **QCJob_kwargs: Passthrough kwargs to QCJob. See
                 :class:`custodian.qchem.jobs.QCJob`.
         """
@@ -478,6 +475,13 @@ class QCJob(Job):
         opt_rem = copy.deepcopy(orig_input.rem)
         first = True
         energy_history = list()
+
+        if optimizer_params is None:
+            raise ValueError("Cannot optimize without optimization parameters.")
+
+        molecule = Molecule.from_dict(optimizer_params["molecule"])
+        del optimizer_params["molecule"]
+        optimizer = BernyOptimizer(molecule, **optimizer_params)
 
         energy_diff_cutoff = 0.0000001
 
