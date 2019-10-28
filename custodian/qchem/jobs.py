@@ -479,9 +479,12 @@ class QCJob(Job):
         if optimizer_params is None:
             raise ValueError("Cannot optimize without optimization parameters.")
 
-        molecule = Molecule.from_dict(optimizer_params["molecule"])
-        del optimizer_params["molecule"]
-        optimizer = BernyOptimizer(molecule, **optimizer_params)
+        try:
+            molecule = Molecule.from_dict(optimizer_params["molecule"])
+            del optimizer_params["molecule"]
+            optimizer = BernyOptimizer(molecule, **optimizer_params)
+        except TypeError:
+            raise ValueError(str(optimizer_params))
 
         energy_diff_cutoff = 0.0000001
 
