@@ -480,8 +480,7 @@ class QCJob(Job):
             raise ValueError("Cannot optimize without optimization parameters.")
 
         try:
-            molecule = Molecule.from_dict(optimizer_params["molecule"])
-            del optimizer_params["molecule"]
+            molecule = QCInput.from_file(input_file).molecule
             optimizer = BernyOptimizer(molecule, **optimizer_params)
         except TypeError:
             raise ValueError(str(optimizer_params))
