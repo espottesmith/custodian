@@ -474,8 +474,8 @@ class QCJob(Job):
             raise ValueError("Cannot optimize without optimization parameters.")
 
         try:
-            molecule = QCInput.from_file(input_file).molecule
-            optimizer = BernyOptimizer(molecule, **optimizer_params)
+            orig_mol = QCInput.from_file(input_file).molecule
+            optimizer = BernyOptimizer(orig_mol, **optimizer_params)
         except TypeError:
             raise ValueError(str(optimizer_params))
 
@@ -484,7 +484,6 @@ class QCJob(Job):
         opt_rem["scf_guess_always"] = True
 
         for ii in range(max_iterations):
-            unstable = False
             final_energy = None
             optimized_mol = None
 
@@ -507,7 +506,6 @@ class QCJob(Job):
                 energy = opt_scratch["energies"][-1]
                 gradients = opt_scratch["gradients"][-1]
 
-                old_mol = optimizer.chemistry
                 optimizer.update(energy, gradients)
                 new_mol, converged = optimizer.get_next_geometry()
 
@@ -522,17 +520,6 @@ class QCJob(Job):
                     if "geom_opt_hessian" in opt_rem:
                         del opt_rem["geom_opt_hessian"]
 
-                    try:
-                        struct_change = check_for_structure_changes(old_mol, new_mol)
-                    except:
-                        print(old_mol)
-                        print(new_mol)
-                        raise(ValueError("Got here again!"))
-                    if struct_change == "unconnected fragments" and not optimizer.transition_state:
-                        print("Unstable molecule broke into unconnected fragments which failed to optimize. Exiting...")
-                        unstable = True
-                        break
-
                     opt_input = QCInput(molecule=new_mol,
                                         rem=opt_rem,
                                         opt=orig_input.opt,
@@ -541,7 +528,9 @@ class QCJob(Job):
                                         smx=orig_input.smx)
                     opt_input.write_file(input_file)
 
-            if unstable:
+            struct_change = check_for_structure_changes(new_mol, orig_mol)
+            if struct_change == "unconnected fragments" and not optimizer.transition_state:
+                print("Unstable molecule broke into unconnected fragments which failed to optimize. Exiting...")
                 break
             elif converged:
                 if optimized_mol is None:
@@ -602,6 +591,8 @@ class QCJob(Job):
                                             solvent=orig_input.solvent,
                                             smx=orig_input.smx)
                         opt_input.write_file(input_file)
+            else:
+                raise RuntimeError("Optimization failed to converge in {} steps.".format(optimizer.max_steps))
         if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
             shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
 
