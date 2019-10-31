@@ -59,7 +59,7 @@ class QChemErrorHandler(ErrorHandler):
         self.errors = self.outdata.get("errors")
         self.warnings = self.outdata.get("warnings")
         # Remove out_of_opt_cycles, because it is handled by another handler
-        self.error = [e for e in self.errors if e != "out_of_opt_cycles"]
+        self.errors = [e for e in self.errors if e != "out_of_opt_cycles"]
         return len(self.errors) > 0
 
     def correct(self):
