@@ -14,7 +14,9 @@ import numpy as np
 from pymatgen.core import Molecule
 from pymatgen.analysis.berny import BernyOptimizer
 from pymatgen.io.qchem.inputs import QCInput
-from pymatgen.io.qchem.outputs import QCOutput, check_for_structure_changes
+from pymatgen.io.qchem.outputs import (QCOutput,
+                                       ScratchFileParser,
+                                       check_for_structure_changes)
 from custodian.custodian import Job
 
 
@@ -500,12 +502,10 @@ class QCJob(Job):
                     backup=first,
                     **QCJob_kwargs))
                 opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(str(ii), str(jj))).data
+                opt_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
 
-                energy = opt_outdata["energy_trajectory"][0]
-                if opt_outdata["solvent_method"] is None:
-                    gradients = opt_outdata["gradients"][0]
-                else:
-                    gradients = opt_outdata["pcm_gradients"][0]
+                energy = opt_scratch["energies"][-1]
+                gradients = opt_scratch["gradients"][-1]
 
                 old_mol = optimizer.chemistry
                 optimizer.update(energy, gradients)
@@ -522,7 +522,12 @@ class QCJob(Job):
                     if "geom_opt_hessian" in opt_rem:
                         del opt_rem["geom_opt_hessian"]
 
-                    struct_change = check_for_structure_changes(old_mol, new_mol)
+                    try:
+                        struct_change = check_for_structure_changes(old_mol, new_mol)
+                    except:
+                        print(old_mol)
+                        print(new_mol)
+                        raise(ValueError("Got here again!"))
                     if struct_change == "unconnected fragments" and not optimizer.transition_state:
                         print("Unstable molecule broke into unconnected fragments which failed to optimize. Exiting...")
                         unstable = True
