@@ -500,11 +500,14 @@ class QCJob(Job):
                     save_name="chain_scratch",
                     backup=first,
                     **QCJob_kwargs))
-                opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(str(ii), str(jj))).data
                 opt_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
 
                 energy = opt_scratch["energies"][-1]
                 gradients = opt_scratch["gradients"][-1]
+
+                if opt_scratch.get("hess_approx_exact", "approximate").lower() == "exact":
+                    hessian = opt_scratch["hess_matrices"][-1]
+                    optimizer.set_hessian_exact(gradients, hessian)
 
                 optimizer.update(energy, gradients)
                 new_mol, converged = optimizer.get_next_geometry()
