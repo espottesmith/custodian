@@ -494,7 +494,7 @@ class QCJob(Job):
                     input_file=input_file,
                     output_file=output_file,
                     qclog_file=qclog_file,
-                    suffix=".opt_{}_{}".format(str(ii), str(jj)),
+                    suffix=".opt_{}_{}".format(ii, jj),
                     scratch_dir=os.getcwd(),
                     save_scratch=True,
                     save_name="chain_scratch",
@@ -531,13 +531,18 @@ class QCJob(Job):
                                         smx=orig_input.smx)
                     opt_input.write_file(input_file)
 
-            struct_change = check_for_structure_changes(new_mol, orig_mol)
-            if struct_change == "unconnected fragments" and not optimizer.transition_state:
-                print("Unstable molecule broke into unconnected fragments which failed to optimize. Exiting...")
-                break
-            elif converged:
+            if converged:
                 if optimized_mol is None:
                     raise RuntimeError("Optimization finished with no optimized geometry!")
+                print("Optimized Molecule: ")
+                print(optimized_mol)
+                print("Charge: {}".format(optimized_mol.charge))
+                print("Initial Molecule: ")
+                print(orig_mol)
+                print("Charge: {}".format(orig_mol.charge))
+                if check_for_structure_changes(optimized_mol, orig_mol) == "unconnected_fragments":
+                    print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
+                    break
                 energy_history.append(final_energy)
                 freq_input = QCInput(molecule=optimized_mol,
                                      rem=freq_rem,
