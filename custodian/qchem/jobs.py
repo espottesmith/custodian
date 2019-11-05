@@ -505,7 +505,7 @@ class QCJob(Job):
                 energy = opt_scratch["energies"][-1]
                 gradients = opt_scratch["gradients"][-1]
 
-                if opt_scratch.get("hess_approx_exact", "approximate").lower() == "exact":
+                if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
                     hessian = opt_scratch["hess_matrices"][-1]
                     optimizer.set_hessian_exact(gradients, hessian)
 
