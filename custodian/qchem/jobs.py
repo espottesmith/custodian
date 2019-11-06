@@ -289,35 +289,10 @@ class QCJob(Job):
         else:
             if not os.path.exists(input_file):
                 raise AssertionError('Input file must be present!')
-            orig_input = QCInput.from_file(input_file)
-            orig_opt_rem = copy.deepcopy(orig_input.rem)
-            orig_freq_rem = copy.deepcopy(orig_input.rem)
-            if "geom_opt_max_cycles" not in orig_opt_rem:
-                orig_opt_rem["geom_opt_max_cycles"] = 200
-            if first_freq:
-                orig_opt_rem["job_type"] = opt_method
-            else:
-                orig_freq_rem["job_type"] = "freq"
-
-            if first_freq:
-                yield (QCJob(qchem_command=qchem_command,
-                             multimode=multimode,
-                             input_file=input_file,
-                             output_file=output_file,
-                             qclog_file=qclog_file,
-                             suffix=".freq_pre",
-                             scratch_dir=os.getcwd(),
-                             save_scratch=True,
-                             save_name="chain_scratch",
-                             **QCJob_kwargs))
-
-                opt_QCInput = QCInput(molecule=orig_input.molecule,
-                                      rem=orig_opt_rem,
-                                      opt=orig_input.opt,
-                                      pcm=orig_input.pcm,
-                                      solvent=orig_input.solvent,
-                                      smx=orig_input.smx)
-                opt_QCInput.write_file(input_file)
+            orig_opt_input = QCInput.from_file(input_file)
+            orig_opt_rem = copy.deepcopy(orig_opt_input.rem)
+            orig_freq_rem = copy.deepcopy(orig_opt_input.rem)
+            orig_freq_rem["job_type"] = "freq"
             first = True
             history = []
 
@@ -345,10 +320,10 @@ class QCJob(Job):
                     freq_QCInput = QCInput(
                         molecule=opt_outdata.get("molecule_from_optimized_geometry"),
                         rem=orig_freq_rem,
-                        opt=orig_input.opt,
-                        pcm=orig_input.pcm,
-                        solvent=orig_input.solvent,
-                        smx=orig_input.smx)
+                        opt=orig_opt_input.opt,
+                        pcm=orig_opt_input.pcm,
+                        solvent=orig_opt_input.solvent,
+                        smx=orig_opt_input.smx)
                     freq_QCInput.write_file(input_file)
                     yield (QCJob(
                         qchem_command=qchem_command,
@@ -472,10 +447,10 @@ class QCJob(Job):
                         new_opt_QCInput = QCInput(
                             molecule=new_molecule,
                             rem=orig_opt_rem,
-                            opt=orig_input.opt,
-                            pcm=orig_input.pcm,
-                            solvent=orig_input.solvent,
-                            smx=orig_input.smx)
+                            opt=orig_opt_input.opt,
+                            pcm=orig_opt_input.pcm,
+                            solvent=orig_opt_input.solvent,
+                            smx=orig_opt_input.smx)
                         new_opt_QCInput.write_file(input_file)
 
     @classmethod
