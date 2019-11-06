@@ -132,6 +132,7 @@ class QCJob(Job):
                                      check_connectivity=True,
                                      linked=True,
                                      transition_state=False,
+                                     first_freq=False,
                                      **QCJob_kwargs):
         """
         Optimize a structure and calculate vibrational frequencies to check if the
@@ -153,6 +154,9 @@ class QCJob(Job):
             linked (bool):
             transition_state (bool): If True (default False), use a ts
                 optimization (search for a saddle point instead of a minimum)
+            first_freq (bool): If True (default False), run a frequency
+                calculation before any opt/ts searches to improve understanding
+                of the local potential energy surface.
             **QCJob_kwargs: Passthrough kwargs to QCJob. See
                 :class:`custodian.qchem.jobs.QCJob`.
         """
@@ -170,12 +174,37 @@ class QCJob(Job):
 
             orig_input = QCInput.from_file(input_file)
             freq_rem = copy.deepcopy(orig_input.rem)
-            freq_rem["job_type"] = "freq"
             opt_rem = copy.deepcopy(orig_input.rem)
             opt_rem["geom_opt_hessian"] = "read"
             opt_rem["scf_guess_always"] = True
+            if "geom_opt_max_cycles" not in opt_rem:
+                opt_rem["geom_opt_max_cycles"] = 200
+            if first_freq:
+                opt_rem["job_type"] = opt_method
+            else:
+                freq_rem["job_type"] = "freq"
             first = True
             energy_history = []
+
+            if first_freq:
+                yield (QCJob(qchem_command=qchem_command,
+                             multimode=multimode,
+                             input_file=input_file,
+                             output_file=output_file,
+                             qclog_file=qclog_file,
+                             suffix=".freq_pre",
+                             scratch_dir=os.getcwd(),
+                             save_scratch=True,
+                             save_name="chain_scratch",
+                             **QCJob_kwargs))
+
+                opt_QCInput = QCInput(molecule=orig_input.molecule,
+                                      rem=opt_rem,
+                                      opt=orig_input.opt,
+                                      pcm=orig_input.pcm,
+                                      solvent=orig_input.solvent,
+                                      smx=orig_input.smx)
+                opt_QCInput.write_file(input_file)
 
             for ii in range(max_iterations):
                 yield (QCJob(
@@ -260,10 +289,35 @@ class QCJob(Job):
         else:
             if not os.path.exists(input_file):
                 raise AssertionError('Input file must be present!')
-            orig_opt_input = QCInput.from_file(input_file)
-            orig_opt_rem = copy.deepcopy(orig_opt_input.rem)
-            orig_freq_rem = copy.deepcopy(orig_opt_input.rem)
-            orig_freq_rem["job_type"] = "freq"
+            orig_input = QCInput.from_file(input_file)
+            orig_opt_rem = copy.deepcopy(orig_input.rem)
+            orig_freq_rem = copy.deepcopy(orig_input.rem)
+            if "geom_opt_max_cycles" not in orig_opt_rem:
+                orig_opt_rem["geom_opt_max_cycles"] = 200
+            if first_freq:
+                orig_opt_rem["job_type"] = opt_method
+            else:
+                orig_freq_rem["job_type"] = "freq"
+
+            if first_freq:
+                yield (QCJob(qchem_command=qchem_command,
+                             multimode=multimode,
+                             input_file=input_file,
+                             output_file=output_file,
+                             qclog_file=qclog_file,
+                             suffix=".freq_pre",
+                             scratch_dir=os.getcwd(),
+                             save_scratch=True,
+                             save_name="chain_scratch",
+                             **QCJob_kwargs))
+
+                opt_QCInput = QCInput(molecule=orig_input.molecule,
+                                      rem=orig_opt_rem,
+                                      opt=orig_input.opt,
+                                      pcm=orig_input.pcm,
+                                      solvent=orig_input.solvent,
+                                      smx=orig_input.smx)
+                opt_QCInput.write_file(input_file)
             first = True
             history = []
 
@@ -291,10 +345,10 @@ class QCJob(Job):
                     freq_QCInput = QCInput(
                         molecule=opt_outdata.get("molecule_from_optimized_geometry"),
                         rem=orig_freq_rem,
-                        opt=orig_opt_input.opt,
-                        pcm=orig_opt_input.pcm,
-                        solvent=orig_opt_input.solvent,
-                        smx=orig_opt_input.smx)
+                        opt=orig_input.opt,
+                        pcm=orig_input.pcm,
+                        solvent=orig_input.solvent,
+                        smx=orig_input.smx)
                     freq_QCInput.write_file(input_file)
                     yield (QCJob(
                         qchem_command=qchem_command,
@@ -418,10 +472,10 @@ class QCJob(Job):
                         new_opt_QCInput = QCInput(
                             molecule=new_molecule,
                             rem=orig_opt_rem,
-                            opt=orig_opt_input.opt,
-                            pcm=orig_opt_input.pcm,
-                            solvent=orig_opt_input.solvent,
-                            smx=orig_opt_input.smx)
+                            opt=orig_input.opt,
+                            pcm=orig_input.pcm,
+                            solvent=orig_input.solvent,
+                            smx=orig_input.smx)
                         new_opt_QCInput.write_file(input_file)
 
     @classmethod
@@ -432,6 +486,7 @@ class QCJob(Job):
                                            output_file="mol.qout",
                                            qclog_file="mol.qclog",
                                            max_iterations=10,
+                                           first_freq=False,
                                            optimizer_params=None,
                                            **QCJob_kwargs):
         """
@@ -450,6 +505,9 @@ class QCJob(Job):
             qclog_file (str): Name of the QChem log file.
             max_iterations (int): Number of perturbation -> optimization -> frequency
                 iterations to perform. Defaults to 10.
+            first_freq (bool): If True (default False), run a frequency
+                calculation before any opt steps to improve understanding
+                of the local potential energy surface.
             optimizer_params (dict): Dictionary with parameters for
                 BernyOptimizer
             QCJob_kwargs (dict): Passthrough kwargs to QCJob. See
@@ -460,13 +518,20 @@ class QCJob(Job):
             raise AssertionError('Input file must be present!')
 
         orig_input = QCInput.from_file(input_file)
-        if str(orig_input.rem["geom_opt_max_cycles"]) != "1":
-            raise ValueError("If Berny is being used, all geometry "
-                             "optimizations should include only a single step!")
+        if not first_freq:
+            if str(orig_input.rem["geom_opt_max_cycles"]) != "1":
+                raise ValueError("If Berny is being used, all geometry "
+                                 "optimizations should include only a single step!")
 
         freq_rem = copy.deepcopy(orig_input.rem)
-        freq_rem["job_type"] = "freq"
         opt_rem = copy.deepcopy(orig_input.rem)
+        opt_rem["scf_guess_always"] = True
+        if "geom_opt_max_cycles" not in opt_rem:
+            opt_rem["geom_opt_max_cycles"] = 1
+        if first_freq:
+            opt_rem["job_type"] = "opt"
+        else:
+            freq_rem["job_type"] = "freq"
         first = True
         energy_history = list()
 
@@ -480,8 +545,33 @@ class QCJob(Job):
             raise ValueError(str(optimizer_params))
 
         energy_diff_cutoff = 0.0000001
+        exact_hessian = None
 
-        opt_rem["scf_guess_always"] = True
+        if first_freq:
+            yield (QCJob(qchem_command=qchem_command,
+                         multimode=multimode,
+                         input_file=input_file,
+                         output_file=output_file,
+                         qclog_file=qclog_file,
+                         suffix=".freq_pre",
+                         scratch_dir=os.getcwd(),
+                         save_scratch=True,
+                         save_name="chain_scratch",
+                         **QCJob_kwargs))
+            freq_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
+
+            if freq_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
+                exact_hessian = freq_scratch["hess_matrices"][-1]
+            else:
+                raise RuntimeError("No Hessian could be found in freq output! Cannot update optimizer Hessian")
+
+            opt_QCInput = QCInput(molecule=orig_input.molecule,
+                                  rem=opt_rem,
+                                  opt=orig_input.opt,
+                                  pcm=orig_input.pcm,
+                                  solvent=orig_input.solvent,
+                                  smx=orig_input.smx)
+            opt_QCInput.write_file(input_file)
 
         for ii in range(max_iterations):
             final_energy = None
@@ -513,6 +603,9 @@ class QCJob(Job):
                 if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
                     hessian = opt_scratch["hess_matrices"][-1]
                     optimizer.set_hessian_exact(gradients, hessian)
+                elif exact_hessian is not None:
+                    optimizer.set_hessian_exact(gradients, exact_hessian)
+                    exact_hessian = None
 
                 optimizer.update(energy, gradients)
                 new_mol, converged = optimizer.get_next_geometry()
@@ -539,15 +632,10 @@ class QCJob(Job):
             if converged:
                 if optimized_mol is None:
                     raise RuntimeError("Optimization finished with no optimized geometry!")
-                print("Optimized Molecule: ")
-                print(optimized_mol)
-                print("Charge: {}".format(optimized_mol.charge))
-                print("Initial Molecule: ")
-                print(orig_mol)
-                print("Charge: {}".format(orig_mol.charge))
                 if check_for_structure_changes(optimized_mol, orig_mol) == "unconnected_fragments":
                     print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
                     break
+                raise RuntimeError("Got inside convergence, didn't write freq_input")
                 energy_history.append(final_energy)
                 freq_input = QCInput(molecule=optimized_mol,
                                      rem=freq_rem,
@@ -556,6 +644,7 @@ class QCJob(Job):
                                      solvent=orig_input.solvent,
                                      smx=orig_input.smx)
                 freq_input.write_file(input_file)
+                raise RuntimeError("Freq input should be written???")
                 yield (QCJob(
                     qchem_command=qchem_command,
                     multimode=multimode,
