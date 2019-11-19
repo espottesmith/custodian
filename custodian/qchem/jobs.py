@@ -566,21 +566,22 @@ class QCJob(Job):
                     save_name="chain_scratch",
                     backup=first,
                     **QCJob_kwargs))
-                opt_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
-                opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(ii, jj)).data
 
                 try:
+                    opt_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
                     energy = opt_scratch["energies"][-1]
                     gradients = opt_scratch["gradients"][-1]
-                except KeyError:
+                    if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
+                        hessian = opt_scratch["hess_matrices"][-1]
+                        optimizer.set_hessian_exact(gradients, hessian)
+                    elif exact_hessian is not None:
+                        optimizer.set_hessian_exact(gradients, exact_hessian)
+                except (KeyError, FileNotFoundError):
+                    # If scratch was not saved for some reason
+                    # OR, if energies and gradients cannot be found
+                    opt_outdata = QCOutput(output_file + ".opt_{}_{}".format(ii, jj)).data
                     energy = opt_outdata["energy_trajectory"][-1]
                     gradients = opt_outdata["gradients"][-1]
-
-                if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
-                    hessian = opt_scratch["hess_matrices"][-1]
-                    optimizer.set_hessian_exact(gradients, hessian)
-                elif exact_hessian is not None:
-                    optimizer.set_hessian_exact(gradients, exact_hessian)
 
                 optimizer.update(energy, gradients)
                 new_mol, converged = optimizer.get_next_geometry()
