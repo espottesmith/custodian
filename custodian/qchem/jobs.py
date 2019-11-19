@@ -12,6 +12,9 @@ import subprocess
 import random
 import numpy as np
 from pymatgen.core import Molecule
+from pymatgen.analysis.graphs import MoleculeGraph
+from pymatgen.analysis.local_env import OpenBabelNN
+from pymatgen.analysis.fragmenter import metal_edge_extender
 from pymatgen.analysis.berny import BernyOptimizer
 from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.outputs import (QCOutput,
@@ -20,7 +23,7 @@ from pymatgen.io.qchem.outputs import (QCOutput,
 from custodian.custodian import Job
 
 
-__author__ = "Samuel Blau, Brandon Wood, Shyam Dwaraknath"
+__author__ = "Samuel Blau, Brandon Wood, Shyam Dwaraknath, Evan Spotte-Smith"
 __copyright__ = "Copyright 2018, The Materials Project"
 __version__ = "0.1"
 __maintainer__ = "Samuel Blau"
@@ -460,6 +463,7 @@ class QCJob(Job):
                                            input_file="mol.qin",
                                            output_file="mol.qout",
                                            qclog_file="mol.qclog",
+                                           berny_logfile="berny.log",
                                            max_iterations=10,
                                            first_freq=False,
                                            optimizer_params=None,
@@ -508,20 +512,17 @@ class QCJob(Job):
         else:
             freq_rem["job_type"] = "freq"
         first = True
-        energy_history = list()
 
         if optimizer_params is None:
             raise ValueError("Cannot optimize without optimization parameters.")
 
-        try:
-            orig_mol = QCInput.from_file(input_file).molecule
-            optimizer = BernyOptimizer(orig_mol, **optimizer_params)
-        except TypeError:
-            raise ValueError(str(optimizer_params))
+        orig_mol = QCInput.from_file(input_file).molecule
+        optimizer = BernyOptimizer(orig_mol, logfile=berny_logfile,
+                                   **optimizer_params)
 
-        energy_diff_cutoff = 0.0000001
         exact_hessian = None
-
+        energy_history = list()
+        energy_diff_cutoff = 0.0000001
         if first_freq:
             yield (QCJob(qchem_command=qchem_command,
                          multimode=multimode,
@@ -535,10 +536,10 @@ class QCJob(Job):
                          **QCJob_kwargs))
             freq_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
 
-            if freq_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
-                exact_hessian = freq_scratch["hess_matrices"][-1]
-            else:
-                raise RuntimeError("No Hessian could be found in freq output! Cannot update optimizer Hessian")
+            exact_hessian = freq_scratch["hess_matrices"][-1]
+
+            if "geom_opt_hessian" not in opt_rem:
+                opt_rem["geom_opt_hessian"] = "read"
 
             opt_QCInput = QCInput(molecule=orig_input.molecule,
                                   rem=opt_rem,
@@ -580,7 +581,6 @@ class QCJob(Job):
                     optimizer.set_hessian_exact(gradients, hessian)
                 elif exact_hessian is not None:
                     optimizer.set_hessian_exact(gradients, exact_hessian)
-                    exact_hessian = None
 
                 optimizer.update(energy, gradients)
                 new_mol, converged = optimizer.get_next_geometry()
@@ -605,12 +605,18 @@ class QCJob(Job):
                     opt_input.write_file(input_file)
 
             if converged:
+                print("Molecule optimization converged.")
                 if optimized_mol is None:
                     raise RuntimeError("Optimization finished with no optimized geometry!")
-                if check_for_structure_changes(optimized_mol, orig_mol) == "unconnected_fragments":
+
+                opt_mg = MoleculeGraph.with_local_env_strategy(optimized_mol, OpenBabelNN(),
+                                                               reorder=False,
+                                                               extend_structure=False)
+                opt_mg = metal_edge_extender(opt_mg)
+                if len(opt_mg.get_disconnected_fragments()) > 1:
                     print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
                     break
-                raise RuntimeError("Got inside convergence, didn't write freq_input")
+
                 energy_history.append(final_energy)
                 freq_input = QCInput(molecule=optimized_mol,
                                      rem=freq_rem,
@@ -619,7 +625,6 @@ class QCJob(Job):
                                      solvent=orig_input.solvent,
                                      smx=orig_input.smx)
                 freq_input.write_file(input_file)
-                raise RuntimeError("Freq input should be written???")
                 yield (QCJob(
                     qchem_command=qchem_command,
                     multimode=multimode,
@@ -634,8 +639,10 @@ class QCJob(Job):
                     **QCJob_kwargs))
                 outdata = QCOutput(output_file + ".freq_" + str(ii)).data
                 errors = outdata.get("errors")
+
                 if len(errors) != 0:
                     raise AssertionError('No errors should be encountered while flattening frequencies!')
+
                 if optimizer.transition_state:
                     if outdata.get('frequencies')[0] < 0.0 and outdata.get('frequencies')[1] > 0.0:
                         print("Saddle point found!")
@@ -670,8 +677,8 @@ class QCJob(Job):
                         opt_input.write_file(input_file)
             else:
                 raise RuntimeError("Optimization failed to converge in {} steps.".format(optimizer.max_steps))
-        if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
-            shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
+        # if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
+        #     shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
 
 
 def perturb_coordinates(old_coords, negative_freq_vecs, molecule_perturb_scale,
