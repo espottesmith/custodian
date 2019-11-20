@@ -80,9 +80,9 @@ class QChemErrorHandler(ErrorHandler):
                 self.qcinp.rem["thresh"] = "14"
                 actions.append({"thresh": "14"})
             elif self.qcinp.rem.get("scf_algorithm", "diis").lower() == "diis":
-                self.qcinp.rem["scf_algorithm"] = "diis_gdm"
-                actions.append({"scf_algorithm": "diis_gdm"})
-            elif self.qcinp.rem.get("scf_algorithm", "diis").lower() == "diis_gdm":
+            #     self.qcinp.rem["scf_algorithm"] = "diis_gdm"
+            #     actions.append({"scf_algorithm": "diis_gdm"})
+            # elif self.qcinp.rem.get("scf_algorithm", "diis").lower() == "diis_gdm":
                 self.qcinp.rem["scf_algorithm"] = "gdm"
                 actions.append({"scf_algorithm": "gdm"})
             elif self.qcinp.rem.get("scf_guess_always", "none").lower() != "true":
@@ -177,7 +177,8 @@ class QChemErrorHandler(ErrorHandler):
             print("Must have gotten an error which is correctly parsed but not included in the handler. FIX!!!")
             return {"errors": self.errors, "actions": None}
 
-        if {"molecule": "molecule_from_last_geometry"} in actions and str(self.qcinp.rem.get("geom_opt_hessian")).lower() == "read":
+        if {"molecule": "molecule_from_last_geometry"} in actions and \
+                str(self.qcinp.rem.get("geom_opt_hessian")).lower() == "read":
             del self.qcinp.rem["geom_opt_hessian"]
             actions.append({"geom_opt_hessian": "deleted"})
         os.rename(self.input_file, self.input_file + ".last")
