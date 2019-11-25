@@ -205,9 +205,8 @@ class QCJob(Job):
                              output_file=output_file,
                              qclog_file=qclog_file,
                              suffix=".freq_pre",
-                             scratch_dir=os.getcwd(),
                              save_scratch=True,
-                             save_name="chain_scratch",
+                             backup=first,
                              **QCJob_kwargs))
 
                 opt_QCInput = QCInput(molecule=orig_input.molecule,
@@ -226,7 +225,6 @@ class QCJob(Job):
                     output_file=output_file,
                     qclog_file=qclog_file,
                     suffix=".{}_".format(opt_method) + str(ii),
-                    suffix=".opt_" + str(ii),
                     save_scratch=True,
                     backup=first,
                     **QCJob_kwargs))
