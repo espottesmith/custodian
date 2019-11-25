@@ -547,6 +547,7 @@ class QCJob(Job):
         exact_hessian = None
         energy_history = list()
         energy_diff_cutoff = 0.0000001
+        converged = False
         if first_freq:
             yield (QCJob(qchem_command=qchem_command,
                          multimode=multimode,
@@ -554,10 +555,9 @@ class QCJob(Job):
                          output_file=output_file,
                          qclog_file=qclog_file,
                          suffix=".freq_pre",
-                         scratch_dir=os.getcwd(),
                          save_scratch=True,
-                         save_name="chain_scratch",
                          **QCJob_kwargs))
+
             freq_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
 
             exact_hessian = freq_scratch["hess_matrices"][-1]
@@ -585,9 +585,7 @@ class QCJob(Job):
                     output_file=output_file,
                     qclog_file=qclog_file,
                     suffix=".opt_{}_{}".format(ii, jj),
-                    scratch_dir=os.getcwd(),
                     save_scratch=True,
-                    save_name="chain_scratch",
                     backup=first,
                     **QCJob_kwargs))
 
@@ -657,9 +655,7 @@ class QCJob(Job):
                     output_file=output_file,
                     qclog_file=qclog_file,
                     suffix=".freq_" + str(ii),
-                    scratch_dir=os.getcwd(),
                     save_scratch=True,
-                    save_name="chain_scratch",
                     backup=first,
                     **QCJob_kwargs))
                 outdata = QCOutput(output_file + ".freq_" + str(ii)).data
@@ -702,8 +698,6 @@ class QCJob(Job):
                         opt_input.write_file(input_file)
             else:
                 raise RuntimeError("Optimization failed to converge in {} steps.".format(optimizer.max_steps))
-        # if os.path.exists(os.path.join(os.getcwd(), "chain_scratch")):
-        #     shutil.rmtree(os.path.join(os.getcwd(), "chain_scratch"))
 
 
 def perturb_coordinates(old_coords, negative_freq_vecs, molecule_perturb_scale,
