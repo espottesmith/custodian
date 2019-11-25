@@ -558,7 +558,7 @@ class QCJob(Job):
                          save_scratch=True,
                          **QCJob_kwargs))
 
-            freq_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
+            freq_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
 
             exact_hessian = freq_scratch["hess_matrices"][-1]
 
@@ -590,7 +590,7 @@ class QCJob(Job):
                     **QCJob_kwargs))
 
                 try:
-                    opt_scratch = ScratchFileParser(os.path.join(os.getcwd(), "chain_scratch")).data
+                    opt_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
                     energy = opt_scratch["energies"][-1]
                     gradients = opt_scratch["gradients"][-1]
                     if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
