@@ -96,6 +96,7 @@ class QCJob(Job):
             os.environ['QCTHREADS'] = str(self.max_cores)
             os.environ['OMP_NUM_THREADS'] = str(self.max_cores)
         os.environ["QCSCRATCH"] = os.getcwd()
+        print("Current QCSCRATCH is: {}".format(os.environ["QCSCRATCH"]))
         if self.calc_loc is not None:
             os.environ["QCLOCALSCR"] = self.calc_loc
 
@@ -122,7 +123,7 @@ class QCJob(Job):
         Returns:
             (subprocess.Popen) Used for monitoring.
         """
-        local_scratch = os.path.join(os.environ["QCLOCALSCR"],"scratch")
+        local_scratch = os.path.join(os.environ["QCLOCALSCR"], "scratch")
         if os.path.exists(local_scratch):
             shutil.rmtree(local_scratch)
         qclog = open(self.qclog_file, 'w')
