@@ -187,12 +187,12 @@ class QCJob(Job):
             orig_input = QCInput.from_file(input_file)
             freq_rem = copy.deepcopy(orig_input.rem)
             opt_rem = copy.deepcopy(orig_input.rem)
-            opt_rem["geom_opt_hessian"] = "read"
             opt_rem["scf_guess_always"] = True
             if "geom_opt_max_cycles" not in opt_rem:
                 opt_rem["geom_opt_max_cycles"] = 200
             if first_freq:
                 opt_rem["job_type"] = opt_method
+                opt_rem["geom_opt_hessian"] = "read"
             else:
                 freq_rem["job_type"] = "freq"
             first = True
@@ -559,8 +559,8 @@ class QCJob(Job):
                          **QCJob_kwargs))
 
             freq_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
-
-            exact_hessian = freq_scratch["hess_matrices"][-1]
+            if "hess_matrices" in freq_scratch:
+                exact_hessian = freq_scratch["hess_matrices"][-1]
 
             if "geom_opt_hessian" not in opt_rem:
                 opt_rem["geom_opt_hessian"] = "read"
