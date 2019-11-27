@@ -9,7 +9,6 @@ import os
 import shutil
 import copy
 import subprocess
-import random
 import numpy as np
 from pymatgen.core import Molecule
 from pymatgen.analysis.graphs import MoleculeGraph
@@ -594,8 +593,11 @@ class QCJob(Job):
                     opt_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
                     energy = opt_scratch["energies"][-1]
                     gradients = opt_scratch["gradients"][-1]
-                    if opt_scratch.get("hess_approx_exact", ["approximate"])[-1].lower() == "exact":
+                    hessian = None
+                    if "hess_matrices" in opt_scratch:
                         hessian = opt_scratch["hess_matrices"][-1]
+                    # If the Hessian isn't the identity matrix, use it for an exact update
+                    if hessian is not None and hessian != np.eye(len(orig_mol) * 3):
                         optimizer.set_hessian_exact(gradients, hessian)
                     elif exact_hessian is not None:
                         optimizer.set_hessian_exact(gradients, exact_hessian)
