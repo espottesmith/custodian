@@ -547,7 +547,6 @@ class QCJob(Job):
         optimizer = BernyOptimizer(orig_mol, logfile=berny_logfile,
                                    **optimizer_params)
 
-        exact_hessian = None
         energy_history = list()
         energy_diff_cutoff = 0.0000001
         converged = False
@@ -560,10 +559,6 @@ class QCJob(Job):
                          suffix=".freq_pre",
                          save_scratch=True,
                          **QCJob_kwargs))
-
-            freq_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
-            if "hess_matrices" in freq_scratch:
-                exact_hessian = freq_scratch["hess_matrices"][-1]
 
             if "geom_opt_hessian" not in opt_rem:
                 opt_rem["geom_opt_hessian"] = "read"
@@ -600,10 +595,9 @@ class QCJob(Job):
                     if "hess_matrices" in opt_scratch:
                         hessian = opt_scratch["hess_matrices"][-1]
                     # If the Hessian isn't the identity matrix, use it for an exact update
-                    if hessian is not None and hessian != np.eye(len(orig_mol) * 3):
-                        optimizer.set_hessian_exact(gradients, hessian)
-                    elif exact_hessian is not None:
-                        optimizer.set_hessian_exact(gradients, exact_hessian)
+                    if hessian is not None:
+                        if not np.allclose(hessian, np.eye(len(orig_mol) * 3)):
+                            optimizer.set_hessian_exact(gradients, hessian)
                 except (KeyError, FileNotFoundError):
                     # If scratch was not saved for some reason
                     # OR, if energies and gradients cannot be found
