@@ -141,7 +141,7 @@ class QCJob(Job):
                                      check_connectivity=True,
                                      linked=True,
                                      transition_state=False,
-                                     first_freq=False,
+                                     freq_before_opt=False,
                                      save_final_scratch=False,
                                      **QCJob_kwargs):
         """
@@ -166,7 +166,7 @@ class QCJob(Job):
                 at the end of the flattening. Defaults to False.
             transition_state (bool): If True (default False), use a ts
                 optimization (search for a saddle point instead of a minimum)
-            first_freq (bool): If True (default False), run a frequency
+            freq_before_opt (bool): If True (default False), run a frequency
                 calculation before any opt/ts searches to improve understanding
                 of the local potential energy surface.
             **QCJob_kwargs: Passthrough kwargs to QCJob. See
@@ -190,7 +190,7 @@ class QCJob(Job):
             opt_rem["scf_guess_always"] = True
             if "geom_opt_max_cycles" not in opt_rem:
                 opt_rem["geom_opt_max_cycles"] = 200
-            if first_freq:
+            if freq_before_opt:
                 opt_rem["job_type"] = opt_method
                 opt_rem["geom_opt_hessian"] = "read"
             else:
@@ -198,7 +198,7 @@ class QCJob(Job):
             first = True
             energy_history = []
 
-            if first_freq:
+            if freq_before_opt:
                 yield (QCJob(qchem_command=qchem_command,
                              multimode=multimode,
                              input_file=input_file,
@@ -489,7 +489,8 @@ class QCJob(Job):
                                            qclog_file="mol.qclog",
                                            berny_logfile="berny.log",
                                            max_iterations=10,
-                                           first_freq=False,
+                                           freq_before_opt=False,
+                                           save_final_scratch=False,
                                            optimizer_params=None,
                                            **QCJob_kwargs):
         """
@@ -508,9 +509,11 @@ class QCJob(Job):
             qclog_file (str): Name of the QChem log file.
             max_iterations (int): Number of perturbation -> optimization -> frequency
                 iterations to perform. Defaults to 10.
-            first_freq (bool): If True (default False), run a frequency
+            freq_before_opt (bool): If True (default False), run a frequency
                 calculation before any opt steps to improve understanding
                 of the local potential energy surface.
+            save_final_scratch (bool): Whether to save full scratch directory contents
+                at the end of the flattening. Defaults to False.
             optimizer_params (dict): Dictionary with parameters for
                 BernyOptimizer
             QCJob_kwargs (dict): Passthrough kwargs to QCJob. See
@@ -521,7 +524,7 @@ class QCJob(Job):
             raise AssertionError('Input file must be present!')
 
         orig_input = QCInput.from_file(input_file)
-        if not first_freq:
+        if not freq_before_opt:
             if str(orig_input.rem["geom_opt_max_cycles"]) != "1":
                 raise ValueError("If Berny is being used, all geometry "
                                  "optimizations should include only a single step!")
@@ -531,7 +534,7 @@ class QCJob(Job):
         opt_rem["scf_guess_always"] = True
         if "geom_opt_max_cycles" not in opt_rem:
             opt_rem["geom_opt_max_cycles"] = 1
-        if first_freq:
+        if freq_before_opt:
             opt_rem["job_type"] = "opt"
         else:
             freq_rem["job_type"] = "freq"
@@ -548,7 +551,7 @@ class QCJob(Job):
         energy_history = list()
         energy_diff_cutoff = 0.0000001
         converged = False
-        if first_freq:
+        if freq_before_opt:
             yield (QCJob(qchem_command=qchem_command,
                          multimode=multimode,
                          input_file=input_file,
@@ -701,6 +704,8 @@ class QCJob(Job):
                         opt_input.write_file(input_file)
             else:
                 raise RuntimeError("Optimization failed to converge in {} steps.".format(optimizer.max_steps))
+        if not save_final_scratch:
+            shutil.rmtree(os.path.join(os.getcwd(), "scratch"))
 
 
 def perturb_coordinates(old_coords, negative_freq_vecs, molecule_perturb_scale,
