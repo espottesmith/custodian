@@ -588,16 +588,19 @@ class QCJob(Job):
                     **QCJob_kwargs))
 
                 try:
-                    opt_scratch = ScratchFileParser(scratch_dir=os.getcwd()).data
-                    energy = opt_scratch["energies"][-1]
-                    gradients = opt_scratch["gradients"][-1]
-                    hessian = None
-                    if "hess_matrices" in opt_scratch:
-                        hessian = opt_scratch["hess_matrices"][-1]
-                    # If the Hessian isn't the identity matrix, use it for an exact update
-                    if hessian is not None:
-                        if not np.allclose(hessian, np.eye(len(orig_mol) * 3)):
-                            optimizer.set_hessian_exact(gradients, hessian)
+                    grad = ScratchFileParser(filename=os.path.join(os.getcwd(),
+                                                                   "GRAD.opt_{}_{}".format(ii, jj))).data
+                    hess = ScratchFileParser(filename=os.path.join(os.getcwd(),
+                                                                   "HESS.opt_{}_{}".format(ii, jj))).data
+                    energy = grad["energy"]
+                    gradients = grad["gradient"]
+
+                    if "hess_matrix" in hess:
+                        hessian = hess["hess_matrix"]
+                        if hessian is not None:
+                            if not np.allclose(hessian, np.eye(len(orig_mol) * 3)):
+                                optimizer.set_hessian_exact(gradients, hessian)
+
                 except (KeyError, FileNotFoundError):
                     # If scratch was not saved for some reason
                     # OR, if energies and gradients cannot be found
