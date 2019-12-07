@@ -229,7 +229,7 @@ class QCJob(Job):
                     backup=first,
                     **QCJob_kwargs))
                 opt_outdata = QCOutput(output_file + ".{}_".format(opt_method) + str(ii)).data
-                opt_indata = QCInput.from_file(input_file + ".opt_" + str(ii))
+                opt_indata = QCInput.from_file(input_file + ".{}_".format(opt_method) + str(ii))
                 if opt_indata.rem["scf_algorithm"] != freq_rem["scf_algorithm"]:
                     freq_rem["scf_algorithm"] = opt_indata.rem["scf_algorithm"]
                     opt_rem["scf_algorithm"] = opt_indata.rem["scf_algorithm"]
