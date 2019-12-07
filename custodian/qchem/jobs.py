@@ -569,6 +569,7 @@ class QCJob(Job):
 
         orig_mol = QCInput.from_file(input_file).molecule
 
+        optimized_mol = None
         for ii in range(max_iterations):
             if optimized_mol is None:
                 optimizer = BernyOptimizer(orig_mol,
