@@ -543,10 +543,6 @@ class QCJob(Job):
         if optimizer_params is None:
             raise ValueError("Cannot optimize without optimization parameters.")
 
-        orig_mol = QCInput.from_file(input_file).molecule
-        optimizer = BernyOptimizer(orig_mol, logfile=berny_logfile,
-                                   **optimizer_params)
-
         energy_history = list()
         energy_diff_cutoff = 0.0000001
         converged = False
@@ -571,7 +567,17 @@ class QCJob(Job):
                                   smx=orig_input.smx)
             opt_QCInput.write_file(input_file)
 
+        orig_mol = QCInput.from_file(input_file).molecule
+
         for ii in range(max_iterations):
+            if optimized_mol is None:
+                optimizer = BernyOptimizer(orig_mol,
+                                           logfile=berny_logfile + "_{}".format(ii),
+                                           **optimizer_params)
+            else:
+                optimizer = BernyOptimizer(optimized_mol,
+                                           logfile=berny_logfile + "_{}".format(ii),
+                                           **optimizer_params)
             final_energy = None
             optimized_mol = None
 
