@@ -642,9 +642,7 @@ class QCJob(Job):
                 if optimized_mol is None:
                     raise RuntimeError("Optimization finished with no optimized geometry!")
 
-                opt_mg = MoleculeGraph.with_local_env_strategy(optimized_mol, OpenBabelNN(),
-                                                               reorder=False,
-                                                               extend_structure=False)
+                opt_mg = MoleculeGraph.with_local_env_strategy(optimized_mol, OpenBabelNN())
                 opt_mg = metal_edge_extender(opt_mg)
                 if len(opt_mg.get_disconnected_fragments()) > 1:
                     print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
