@@ -19,7 +19,9 @@ from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.outputs import (QCOutput,
                                        ScratchFileParser,
                                        check_for_structure_changes)
+
 from custodian.custodian import Job
+from custodian.qchem.utils import perturb_coordinates, vector_list_diff
 
 
 __author__ = "Samuel Blau, Brandon Wood, Shyam Dwaraknath, Evan Spotte-Smith"
@@ -708,25 +710,3 @@ class QCJob(Job):
                 raise RuntimeError("Optimization failed to converge in {} steps.".format(optimizer.max_steps))
         if not save_final_scratch:
             shutil.rmtree(os.path.join(os.getcwd(), "scratch"))
-
-
-def perturb_coordinates(old_coords, negative_freq_vecs, molecule_perturb_scale,
-                        reversed_direction):
-    max_dis = max(
-        [math.sqrt(sum([x ** 2 for x in vec])) for vec in negative_freq_vecs])
-    scale = molecule_perturb_scale / max_dis
-    normalized_vecs = [[x * scale for x in vec] for vec in negative_freq_vecs]
-    direction = 1.0
-    if reversed_direction:
-        direction = -1.0
-    return [[c + v * direction for c, v in zip(coord, vec)]
-            for coord, vec in zip(old_coords, normalized_vecs)]
-
-
-def vector_list_diff(vecs1, vecs2):
-    diff = 0.0
-    if len(vecs1) != len(vecs2):
-        raise AssertionError("ERROR: Vectors must be of equal length! Exiting...")
-    for ii, vec1 in enumerate(vecs1):
-        diff += np.linalg.norm(vecs2[ii] - vec1)
-    return diff
