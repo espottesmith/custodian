@@ -192,10 +192,9 @@ class QCJob(Job):
             opt_rem["scf_guess_always"] = True
             if "geom_opt_max_cycles" not in opt_rem:
                 opt_rem["geom_opt_max_cycles"] = 200
-            if freq_before_opt:
-                opt_rem["job_type"] = opt_method
-                opt_rem["geom_opt_hessian"] = "read"
-            else:
+            opt_rem["job_type"] = opt_method
+            opt_rem["geom_opt_hessian"] = "read"
+            if not freq_before_opt:
                 freq_rem["job_type"] = "freq"
             first = True
             energy_history = []
