@@ -235,7 +235,7 @@ class QCJob(Job):
                     opt_rem["scf_algorithm"] = opt_indata.rem["scf_algorithm"]
                 first = False
                 if opt_outdata["structure_change"] == "unconnected_fragments" and not opt_outdata["completion"]:
-                    print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
+                    # print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
                     break
                 else:
                     energy_history.append(opt_outdata.get("final_energy"))
@@ -329,7 +329,7 @@ class QCJob(Job):
                     orig_energy = copy.deepcopy(opt_outdata.get('final_energy'))
                 first = False
                 if opt_outdata["structure_change"] == "unconnected_fragments" and not opt_outdata["completion"]:
-                    print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
+                    # print("Unstable molecule broke into unconnected fragments which failed to optimize! Exiting...")
                     break
                 else:
                     freq_QCInput = QCInput(
@@ -354,9 +354,9 @@ class QCJob(Job):
                     if len(errors) != 0:
                         raise AssertionError('No errors should be encountered while flattening frequencies!')
                     if outdata.get('frequencies')[0] > 0.0:
-                        print("All frequencies positive!")
-                        if opt_outdata.get('final_energy') > orig_energy:
-                            print("WARNING: Energy increased during frequency flattening!")
+                        # print("All frequencies positive!")
+                        # if opt_outdata.get('final_energy') > orig_energy:
+                        #    print("WARNING: Energy increased during frequency flattening!")
                         break
                     else:
                         hist = {}
