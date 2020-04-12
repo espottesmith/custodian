@@ -222,7 +222,11 @@ class QChemOptErrorHandler(ErrorHandler):
         self.warnings = self.outdata.get("warnings")
         # If we aren't out of optimization cycles, but we were in the past, reset the history
         if "out_of_opt_cycles" not in self.errors and len(self.opt_error_history) > 0:
-            self.opt_error_history = []
+            self.opt_error_history = list()
+            self.errors = list()
+        else:
+            # This is the only error that this handler handles
+            self.errors = ["out_of_opt_cycles"]
         # If we're out of optimization cycles and we have unconnected fragments, no need to handle any errors
         if "out_of_opt_cycles" in self.errors and self.outdata["structure_change"] == "unconnected_fragments":
             return False
