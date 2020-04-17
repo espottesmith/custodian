@@ -24,11 +24,12 @@ class GSMJob(Job):
 
     def __init__(self,
                  command,
-                 package,
                  charge,
-                 xyz_file="input_geometry.xyz",
+                 multiplicity,
+                 xyz_file="input.xyz",
                  input_file="gsm.inp",
                  output_file="gsm.out",
+                 isomers_file="isomers.txt",
                  mode="DE_GSM",
                  suffix="",
                  string_id=0,
@@ -42,14 +43,16 @@ class GSMJob(Job):
         """
         Args:
             command (str): Command to run pyGSM.
-            package (str): Electronic structure package to use with pyGSM.
-                Technically, a wide range of packages can be used, but within
-                custodian, only "QChem" and "XTB" are supported.
+            charge (int): Molecule charge for this calculation.
+            multiplicity (int): Spin multiplicity for this calculation.
             xyz_file (str): Name of the input geometry file for GSM.
             input_file (str): Name of the electronic structure package input file
                 for the calculation (format depends on the package).
             output_file (str): Name of the file where all output from pyGSM
                 should be piped.
+            isomers_file (str): Name of the isomers file to define which
+                coordinates should be adjusted. This is necessary only for the
+                single-ended methods like SE_GSM.
             mode (str): One of DE_GSM (for the double-ended growing-string
                 method), SE_GSM (for the single-ended growing-string method), or
                 SE_Cross (for the crossing single-ended growing-string method).
@@ -64,25 +67,30 @@ class GSMJob(Job):
             max_cores (int): Number of processes to use for parallelization
             ends_fixed (bool): If True (default False), do not optimize the ends
                 of the string (the reactants and products).
+            num_nodes (int): Number of nodes along the string. Default is 9 (for
+                double-ended string, this is generally appropriate), but should
+                be changed to a larger number (perhaps 20-30) for the
+                single-ended string method.
             additional_options (dict, or None): If not None (default), this
                 contains key-value pairs for all additional command-line options
                 for pyGSM.
         """
+        # For now, only allow Q-Chem. Eventually can allow others like XTB
+        self.package = "QChem"
+
         self.command = command.split(" ")
-        if package in ["QChem", "XTB"]:
-            self.package = package
-        else:
-            raise ValueError("Invalid electronic structure package given. "
-                             "Options include QChem and XTB.")
+
         if mode in ["DE_GSM", "SE_GSM", "SE_Cross"]:
             self.mode = mode
         else:
             raise ValueError("Invalid GSM mode given. "
                              "Options include DE_GSM, SE_GSM, and SE_Cross.")
         self.charge = charge
+        self.spin_multiplicity = multiplicity
         self.xyz_file = xyz_file
         self.input_file = input_file
         self.output_file = output_file
+        self.isomers_file = isomers_file
         self.suffix = suffix
         self.string_id = string_id
         self.calc_loc = calc_loc
@@ -103,7 +111,11 @@ class GSMJob(Job):
                                   "-lot_inp_file", self.input_file, "-package",
                                   self.package, "-ID", str(self.string_id),
                                   "-num_nodes", str(self.num_nodes), "-charge",
-                                  str(self.charge)]
+                                  str(self.charge), "-multiplicity",
+                                  self.spin_multiplicity]
+
+        if self.mode in ["SE_GSM", "SE_Cross"]:
+            command += ["-isomers", self.isomers_file]
 
         if self.ends_fixed:
             if self.mode == "DE_GSM":
@@ -113,7 +125,7 @@ class GSMJob(Job):
             command += com
 
         if self.multimode:
-            com = ["-use_multiprocessing", "-nproc", str(self.max_cores)]
+            com = ["-nproc", str(self.max_cores)]
             command += com
 
         for key, value in self.additional_options.items():
@@ -135,14 +147,13 @@ class GSMJob(Job):
 
     def postprocess(self):
         scratch_dir = os.path.join(os.environ["SCRATCH"], "scratch")
-        string_dir = os.path.join(os.environ["SCRATCH"],
-                                  "string_{:03d}".format(self.string_id))
         if self.suffix != "":
             shutil.move(self.input_file, self.input_file + self.suffix)
             shutil.move(self.output_file, self.output_file + self.suffix)
         if not self.save_scratch:
-            shutil.rmtree(scratch_dir, ignore_errors=True)
-            shutil.rmtree(string_dir, ignore_errors=True)
+            for file in os.listdir(scratch_dir):
+                if file.endswith(".0") or "rem" in file or "tmp" in file or "zmat" in file:
+                    os.remove(os.path.join(scratch_dir, file))
 
     def run(self):
         """
@@ -152,10 +163,8 @@ class GSMJob(Job):
             (subprocess.Popen) Used for monitoring.
         """
         local_scratch = os.path.join(os.environ["SCRATCH"], "scratch")
-        local_string = os.path.join(os.environ["SCRATCH"], "string_{:03d}".format(self.string_id))
         if os.path.exists(local_scratch):
             shutil.rmtree(local_scratch)
-            shutil.rmtree(local_string)
         p = subprocess.Popen(self.current_command,
                              stdout=open(self.output_file, 'w'),
                              shell=True)
