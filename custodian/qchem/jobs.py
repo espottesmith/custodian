@@ -210,6 +210,7 @@ class QCJob(Job):
                                   solvent=orig_input.solvent,
                                   smx=orig_input.smx)
             opt_QCInput.write_file(input_file)
+            first = False
 
         for ii in range(max_iterations):
             yield (QCJob(
